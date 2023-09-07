@@ -4,6 +4,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Django migrations
+migrations/
+
+# sqlite3 db
+*.sqlite3
+
 # C extensions
 *.so
 
