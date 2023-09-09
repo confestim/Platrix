@@ -21,6 +21,6 @@ from website import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('board/', views.current_config),
-    path('board/json/', views.current_board),
+    path('board/json/', views.json_board),
     path('board/<int:x>/<int:y>/<str:color>', views.update_board),
 ]
