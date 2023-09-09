@@ -5,6 +5,8 @@ from django.http import HttpResponse
 from django.core.exceptions import ObjectDoesNotExist
 from colour import Color
 from pytz import UTC
+from .config import URL 
+
 # Change these for your board
 BOARD_X = 64
 BOARD_Y = 32
@@ -17,11 +19,7 @@ BOARD_Y = 32
 
 # Internal validation
 def validateBoard(x:int, y:int, board:dict, ip) -> bool:
-    try:
-        ip = RestrictedIP.objects.get(ip=ip)
-        return "RESTRICTED"
-    except ObjectDoesNotExist:
-        pass
+
     key_counter = 0 # Not using len for optimization purposes
     
     for row in board:
@@ -48,12 +46,12 @@ def restrict_or_unrestrict(ip):
         # if banned for more than 1 minute, unban
         if timedelta.seconds > 60:
             ip.delete()
-            return "ALLOWED"
+            return "SUCESS"
         return "STILL RESTRICTED"
     except ObjectDoesNotExist:
         instance = RestrictedIP(ip=ip, time_added=datetime.now())
         instance.save()
-        return "RESTRICTION"
+        return "SUCCESS"
         
 # Internal board class
 class localBoard:
@@ -83,7 +81,7 @@ class localBoard:
         instance.save()
         self.board = Board.objects.latest("update_time")
         return "SUCCESS"
-
+    
     def HTML(self) -> str:
         board = self.getBoard()
         style = """ 
@@ -100,30 +98,38 @@ class localBoard:
                     </style>
                     """
         
-        selected_pixel = """
+        selected_pixel = f"""
                             <script>
-                            async function selected_pixel(element) {
+                            async function selected_pixel(element) {{
                                 var color = document.getElementById("color_picker").value;
                                 
                                 var arr = element.id.split("x")[1].split("y");
                                 var x = arr[0];
                                 var y = arr[1];
 
-                                var url = "http://127.0.0.1:8000/board/" + x + "/" + y + "/" + color.replace("#", "%23");
+                                var url = "{URL}" + x + "/" + y + "/" + color.replace("#", "%23");
                                 let response = await fetch(url);
                                 let result = await response.text();
                                 console.log(result);
-                                if (result != "RESTRICTED") {
+                                if (result != "RESTRICTED") {{
                                     element.style.backgroundColor = color;
-                                } 
-                                else {
+                                }}
+                                else {{
                                     alert("You have placed your pixel. Please wait.");
-                                }
-                            }
+                                }}
+                            }}
                             </script>
                          """
-        
-        html = f"<html><head><title>Ballin</title></head>{style}<body>{selected_pixel}<table><form>"
+        reload_page = """
+                        <script>
+                        function reload_page() {
+                            location.reload();
+                        }
+
+                        setTimeout(reload_page, 10000);
+                        </script>
+                    """        
+        html = f"<html><head><title>Ballin</title>{reload_page}</head>{style}<body>{selected_pixel}<table><form>"
         for row in board:
             html += "<tr>"
             x = 0
@@ -132,7 +138,7 @@ class localBoard:
                 x += 1       
             html += "</tr>"
         html += "</table><div class='color'><input type='color' id='color_picker'><p color='white' ><------ pick ur color</p></div></body></html>"
-        return html            
+        return html    
 
 # Publicly visible functions
 def update_board(request, x, y, color):
@@ -144,7 +150,7 @@ def update_board(request, x, y, color):
     board[str(y)][int(x)] = color
     
     ip = restrict_or_unrestrict(request.META["REMOTE_ADDR"])
-    if ip == "STILL RESTRICTED":
+    if ip != "SUCCESS":
         return HttpResponse("RESTRICTED")
     res = localBoard().setBoard(board, request.META["REMOTE_ADDR"])
     return HttpResponse(f"board: {str(res)}, ip: {ip}")
@@ -153,3 +159,6 @@ def current_config(request):
     html = localBoard().HTML()
     return HttpResponse(html)
 
+def json_board(request):
+    board = localBoard().getBoard()
+    return HttpResponse(board)
