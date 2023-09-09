@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from .models import Board, RestrictedIP
 from datetime import datetime
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
 from colour import Color
 from pytz import UTC
@@ -161,4 +161,4 @@ def current_config(request):
 
 def json_board(request):
     board = localBoard().getBoard()
-    return HttpResponse(board)
+    return JsonResponse(board)
